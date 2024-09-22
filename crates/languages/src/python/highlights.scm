@@ -127,13 +127,6 @@
   ">>"
   "|"
   "~"
-  "and"
-  "in"
-  "is"
-  "not"
-  "or"
-  "is not"
-  "not in"
 ] @operator
 
 [
@@ -168,4 +161,11 @@
   "yield"
   "match"
   "case"
+  "and"
+  "in"
+  "is"
+  "not"
+  "or"
+  "is not"
+  "not in"
 ] @keyword
