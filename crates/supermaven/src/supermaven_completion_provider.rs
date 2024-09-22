@@ -5,12 +5,7 @@ use editor::{CompletionProposal, Direction, InlayProposal, InlineCompletionProvi
 use futures::StreamExt as _;
 use gpui::{AppContext, EntityId, Model, ModelContext, Task};
 use language::{language_settings::all_language_settings, Anchor, Buffer, BufferSnapshot};
-use std::{
-    ops::{AddAssign, Range},
-    path::Path,
-    sync::Arc,
-    time::Duration,
-};
+use std::{ops::Range, path::Path, sync::Arc, time::Duration};
 use text::{ToOffset, ToPoint};
 
 pub const DEBOUNCE_TIMEOUT: Duration = Duration::from_millis(75);
@@ -54,33 +49,29 @@ fn completion_state_from_diff(
 ) -> CompletionProposal {
     let buffer_text = snapshot
         .text_for_range(delete_range.clone())
-        .collect::<String>()
-        .chars()
-        .collect::<Vec<char>>();
+        .collect::<String>();
+    let mut compl_ix_converter = StringIndexConverter::new(completion_text);
+    let mut buffer_ix_converter = StringIndexConverter::new(buffer_text);
 
     let mut inlays: Vec<InlayProposal> = Vec::new();
-
-    let completion = completion_text.chars().collect::<Vec<char>>();
-
     let mut offset = position.to_offset(&snapshot);
-
-    let mut i = 0;
-    let mut j = 0;
-    while i < completion.len() && j < buffer_text.len() {
+    while compl_ix_converter.can_loop() && buffer_ix_converter.can_loop() {
         // find the next instance of the buffer text in the completion text.
-        let k = completion[i..].iter().position(|c| *c == buffer_text[j]);
-        match k {
-            Some(k) => {
-                if k != 0 {
-                    // the range from the current position to item is an inlay.
+        match compl_ix_converter.has_char_from_current_ix(buffer_ix_converter.current_char()) {
+            Some((utf8_dist, char_dist)) => {
+                // the range from the current position to item is an inlay.
+                if utf8_dist != 0 {
+                    debug_assert!(char_dist != 0);
                     inlays.push(InlayProposal::Suggestion(
                         snapshot.anchor_after(offset),
-                        completion_text[i..i + k].into(),
+                        completion_text
+                            [compl_ix_converter.utf8_ix..compl_ix_converter.utf8_ix + utf8_dist]
+                            .into(),
                     ));
                 }
-                i += k + 1;
-                j += 1;
-                offset.add_assign(1);
+                compl_ix_converter.update_ix(utf8_dist + 1, char_dist + 1);
+                buffer_ix_converter.update_ix(1, 1);
+                offset = snapshot.clip_offset(offset + 1, text::Bias::Right);
             }
             None => {
                 // there are no more matching completions, so drop the remaining
@@ -90,11 +81,13 @@ fn completion_state_from_diff(
         }
     }
 
-    if j == buffer_text.len() && i < completion.len() {
+    if buffer_ix_converter.utf8_ix == buffer_ix_converter.text.len()
+        && compl_ix_converter.utf8_ix < completion_text.len()
+    {
         // there is leftover completion text, so drop it as an inlay.
         inlays.push(InlayProposal::Suggestion(
             snapshot.anchor_after(offset),
-            completion_text[i..completion_text.len()].into(),
+            completion_text[compl_ix_converter.utf8_ix..completion_text.len()].into(),
         ));
     }
 
@@ -253,4 +246,49 @@ fn has_leading_newline(text: &str) -> bool {
         }
     }
     false
+}
+
+struct StringIndexConverter {
+    text: String,
+    chars: Vec<char>,
+    utf8_ix: usize,
+    char_ix: usize,
+}
+
+impl StringIndexConverter {
+    fn new(input: impl Into<String>) -> Self {
+        let text = input.into();
+        let chars = text.chars().collect();
+        Self {
+            text,
+            chars,
+            utf8_ix: 0,
+            char_ix: 0,
+        }
+    }
+
+    fn update_ix(&mut self, utf8_step: usize, char_step: usize) {
+        self.utf8_ix += utf8_step;
+        while !self.text.is_char_boundary(self.utf8_ix) {
+            self.utf8_ix += 1;
+        }
+        self.char_ix += char_step;
+    }
+
+    fn can_loop(&self) -> bool {
+        self.utf8_ix < self.text.len()
+    }
+
+    fn has_char_from_current_ix(&self, ch: char) -> Option<(usize, usize)> {
+        let char_dist = self.chars[self.char_ix..].iter().position(|c| *c == ch)?;
+        let utf8_dist = self.chars[self.char_ix..self.char_ix + char_dist]
+            .iter()
+            .map(|c| c.len_utf8())
+            .sum::<usize>();
+        Some((utf8_dist, char_dist))
+    }
+
+    fn current_char(&self) -> char {
+        self.chars[self.char_ix]
+    }
 }
