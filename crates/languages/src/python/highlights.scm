@@ -56,8 +56,6 @@
 
 ; Function calls
 
-(decorator) @function
-
 (call
   function: (attribute attribute: (identifier) @function.method))
 (call
@@ -102,7 +100,7 @@
 [
   (parameters (identifier) @variable.special)
   (attribute (identifier) @variable.special)
-  (#match? @variable.special "^self$")
+  (#match? @variable.special "^self|cls$")
 ]
 
 (comment) @comment
@@ -129,6 +127,33 @@
   name: (_)
   (parameters)?
   body: (block (expression_statement (string) @string.doc)))
+
+(decorator
+  "@" @function.decorator
+  [
+    (attribute
+      object: (identifier) @function.decorator
+      attribute: (identifier) @function.decorator
+    ) @function.decorator
+    (call
+      function: [
+        (identifier) @function.decorator
+        (attribute
+          object: (identifier) @function.decorator
+          attribute: (identifier) @function.decorator
+        ) @function.decorator
+      ]
+    ) @function.decorator
+    (_) @function.decorator
+  ]
+)
+
+(class_definition
+  (argument_list [
+    (identifier) @type
+    (keyword_argument (identifier) @variable.parameter)
+  ])
+)
 
 [
   "-"
@@ -161,13 +186,6 @@
   ">>"
   "|"
   "~"
-  "and"
-  "in"
-  "is"
-  "not"
-  "or"
-  "is not"
-  "not in"
 ] @operator
 
 [
@@ -202,4 +220,11 @@
   "yield"
   "match"
   "case"
+  "and"
+  "in"
+  "is"
+  "not"
+  "or"
+  "is not"
+  "not in"
 ] @keyword
