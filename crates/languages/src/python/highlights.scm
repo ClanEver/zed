@@ -152,7 +152,10 @@
 (class_definition
   (argument_list [
     (identifier) @type
-    (keyword_argument (identifier) @variable.parameter)
+    (keyword_argument
+      name: (identifier) @variable.parameter
+      value: (_)
+    )
   ])
 )
 
