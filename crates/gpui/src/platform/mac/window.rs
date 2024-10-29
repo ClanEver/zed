@@ -707,7 +707,7 @@ impl MacWindow {
                 }
             }
 
-            if focus {
+            if focus && show {
                 native_window.makeKeyAndOrderFront_(nil);
             } else if show {
                 native_window.orderFront_(nil);
@@ -768,6 +768,7 @@ impl Drop for MacWindow {
         unsafe {
             this.native_window.setDelegate_(nil);
         }
+        this.input_handler.take();
         this.executor
             .spawn(async move {
                 unsafe {

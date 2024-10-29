@@ -22,7 +22,7 @@ use terminal::{
     terminal_settings::{CursorShape, TerminalBlink, TerminalSettings, WorkingDirectory},
     Clear, Copy, Event, MaybeNavigationTarget, Paste, ScrollLineDown, ScrollLineUp, ScrollPageDown,
     ScrollPageUp, ScrollToBottom, ScrollToTop, ShowCharacterPalette, TaskStatus, Terminal,
-    TerminalSize,
+    TerminalSize, ToggleViMode,
 };
 use terminal_element::{is_blank, TerminalElement};
 use terminal_panel::TerminalPanel;
@@ -104,7 +104,7 @@ pub struct TerminalView {
     context_menu: Option<(View<ContextMenu>, gpui::Point<Pixels>, Subscription)>,
     cursor_shape: CursorShape,
     blink_state: bool,
-    blinking_on: bool,
+    blinking_terminal_enabled: bool,
     blinking_paused: bool,
     blink_epoch: usize,
     can_navigate_to_selected_word: bool,
@@ -184,7 +184,7 @@ impl TerminalView {
             context_menu: None,
             cursor_shape,
             blink_state: true,
-            blinking_on: false,
+            blinking_terminal_enabled: false,
             blinking_paused: false,
             blink_epoch: 0,
             can_navigate_to_selected_word: false,
@@ -431,10 +431,14 @@ impl TerminalView {
         cx.notify();
     }
 
+    fn toggle_vi_mode(&mut self, _: &ToggleViMode, cx: &mut ViewContext<Self>) {
+        self.terminal.update(cx, |term, _| term.toggle_vi_mode());
+        cx.notify();
+    }
+
     pub fn should_show_cursor(&self, focused: bool, cx: &mut gpui::ViewContext<Self>) -> bool {
         //Don't blink the cursor when not focused, blinking is disabled, or paused
         if !focused
-            || !self.blinking_on
             || self.blinking_paused
             || self
                 .terminal
@@ -450,7 +454,10 @@ impl TerminalView {
             //If the user requested to never blink, don't blink it.
             TerminalBlink::Off => true,
             //If the terminal is controlling it, check terminal mode
-            TerminalBlink::TerminalControlled | TerminalBlink::On => self.blink_state,
+            TerminalBlink::TerminalControlled => {
+                !self.blinking_terminal_enabled || self.blink_state
+            }
+            TerminalBlink::On => self.blink_state,
         }
     }
 
@@ -642,7 +649,14 @@ fn subscribe_for_terminal_events(
                 cx.emit(Event::Wakeup);
             }
 
-            Event::BlinkChanged => this.blinking_on = !this.blinking_on,
+            Event::BlinkChanged(blinking) => {
+                if matches!(
+                    TerminalSettings::get_global(cx).blinking,
+                    TerminalBlink::TerminalControlled
+                ) {
+                    this.blinking_terminal_enabled = *blinking;
+                }
+            }
 
             Event::TitleChanged => {
                 cx.emit(ItemEvent::UpdateTab);
@@ -784,6 +798,7 @@ fn possible_open_paths_metadata(
     cx.background_executor().spawn(async move {
         let mut paths_with_metadata = Vec::with_capacity(potential_paths.len());
 
+        #[cfg(not(target_os = "windows"))]
         let mut fetch_metadata_tasks = potential_paths
             .into_iter()
             .map(|potential_path| async {
@@ -796,6 +811,20 @@ fn possible_open_paths_metadata(
                     },
                     metadata,
                 )
+            })
+            .collect::<FuturesUnordered<_>>();
+
+        #[cfg(target_os = "windows")]
+        let mut fetch_metadata_tasks = potential_paths
+            .iter()
+            .map(|potential_path| async {
+                let metadata = fs.metadata(potential_path).await.ok().flatten();
+                let path = PathBuf::from(
+                    potential_path
+                        .to_string_lossy()
+                        .trim_start_matches("\\\\?\\"),
+                );
+                (PathWithPosition { path, row, column }, metadata)
             })
             .collect::<FuturesUnordered<_>>();
 
@@ -946,7 +975,7 @@ impl Render for TerminalView {
         div()
             .size_full()
             .relative()
-            .track_focus(&self.focus_handle)
+            .track_focus(&self.focus_handle(cx))
             .key_context(self.dispatch_context(cx))
             .on_action(cx.listener(TerminalView::send_text))
             .on_action(cx.listener(TerminalView::send_keystroke))
@@ -959,6 +988,7 @@ impl Render for TerminalView {
             .on_action(cx.listener(TerminalView::scroll_page_down))
             .on_action(cx.listener(TerminalView::scroll_to_top))
             .on_action(cx.listener(TerminalView::scroll_to_bottom))
+            .on_action(cx.listener(TerminalView::toggle_vi_mode))
             .on_action(cx.listener(TerminalView::show_character_palette))
             .on_action(cx.listener(TerminalView::select_all))
             .on_key_down(cx.listener(Self::key_down))
@@ -1162,7 +1192,7 @@ impl SerializableItem for TerminalView {
             return None;
         }
 
-        if let Some((cwd, workspace_id)) = terminal.get_cwd().zip(self.workspace_id) {
+        if let Some((cwd, workspace_id)) = terminal.working_directory().zip(self.workspace_id) {
             Some(cx.background_executor().spawn(async move {
                 TERMINAL_DB
                     .save_working_directory(item_id, workspace_id, cwd)

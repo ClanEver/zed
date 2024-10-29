@@ -289,7 +289,6 @@ impl ProjectSearch {
                     .await;
 
                 this.update(&mut cx, |this, cx| {
-                    this.no_results = Some(false);
                     this.match_ranges.extend(match_ranges);
                     cx.notify();
                 })
@@ -297,6 +296,9 @@ impl ProjectSearch {
             }
 
             this.update(&mut cx, |this, cx| {
+                if !this.match_ranges.is_empty() {
+                    this.no_results = Some(false);
+                }
                 this.limit_reached = limit_reached;
                 this.pending_search.take();
                 cx.notify();
@@ -325,7 +327,7 @@ impl Render for ProjectSearchView {
             div()
                 .flex_1()
                 .size_full()
-                .track_focus(&self.focus_handle)
+                .track_focus(&self.focus_handle(cx))
                 .child(self.results_editor.clone())
         } else {
             let model = self.model.read(cx);
@@ -363,7 +365,7 @@ impl Render for ProjectSearchView {
                 .size_full()
                 .justify_center()
                 .bg(cx.theme().colors().editor_background)
-                .track_focus(&self.focus_handle)
+                .track_focus(&self.focus_handle(cx))
                 .child(
                     h_flex()
                         .size_full()
@@ -1634,7 +1636,7 @@ impl Render for ProjectSearchBar {
                             let focus_handle = focus_handle.clone();
                             move |cx| {
                                 Tooltip::for_action_in(
-                                    "Toggle replace",
+                                    "Toggle Replace",
                                     &ToggleReplace,
                                     &focus_handle,
                                     cx,
