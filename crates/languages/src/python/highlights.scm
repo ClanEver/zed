@@ -11,6 +11,50 @@
   (tuple (identifier) @type)
 )
 
+; Union type X | Y (up to 8 types)
+(type
+  (binary_operator
+    left: [
+      (binary_operator
+        left:  [
+          (binary_operator
+            left:  [
+              (binary_operator
+                left:  [
+                  (binary_operator
+                    left:  [
+                      (binary_operator
+                        left: [
+                          (binary_operator
+                            left: (_) @type
+                            right: (_) @type
+                          ) @type
+                          (_) @type
+                        ]
+                        right: (_) @type
+                      ) @type
+                      (_) @type
+                    ]
+                    right: (_) @type
+                  ) @type
+                  (_) @type
+                ]
+                right: (_) @type
+              ) @type
+              (_) @type
+            ]
+            right: (_) @type
+          ) @type
+          (_) @type
+        ]
+        right: (_) @type
+      ) @type
+      (_) @type
+    ]
+    right: (_) @type
+  ) @type
+)
+
 ; Function calls
 
 (call
