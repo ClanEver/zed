@@ -133,6 +133,15 @@
         (expression_statement (assignment))
         . (expression_statement (string) @string.doc)))))
 
+(class_definition
+  (argument_list [
+    (identifier) @type
+    (keyword_argument
+      name: (identifier) @variable.parameter
+      value: (_)
+    )
+  ])
+)
 
 [
   "-"
