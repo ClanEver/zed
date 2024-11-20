@@ -6,74 +6,39 @@
 ; Type alias
 (type_alias_statement "type" @keyword)
 
+; Identifier naming conventions
+
+((identifier) @type.class
+ (#match? @type.class "^[A-Z]"))
+
+((identifier) @constant
+ (#match? @constant "^_*[A-Z][A-Z\\d_]*$"))
+
 ; TypeVar with constraints in type parameters
 (type
   (tuple (identifier) @type)
 )
 
-; Union type X | Y (up to 8 types)
-(type
-  (binary_operator
-    left: [
-      (binary_operator
-        left:  [
-          (binary_operator
-            left:  [
-              (binary_operator
-                left:  [
-                  (binary_operator
-                    left:  [
-                      (binary_operator
-                        left: [
-                          (binary_operator
-                            left: (_) @type
-                            right: (_) @type
-                          ) @type
-                          (_) @type
-                        ]
-                        right: (_) @type
-                      ) @type
-                      (_) @type
-                    ]
-                    right: (_) @type
-                  ) @type
-                  (_) @type
-                ]
-                right: (_) @type
-              ) @type
-              (_) @type
-            ]
-            right: (_) @type
-          ) @type
-          (_) @type
-        ]
-        right: (_) @type
-      ) @type
-      (_) @type
-    ]
-    right: (_) @type
-  ) @type
-)
-
 ; Function calls
 
 (call
-  function: (attribute attribute: (identifier) @function.method))
+  function: (attribute attribute: (identifier) @function.method.call))
 (call
-  function: (identifier) @function)
+  function: (identifier) @function.call)
 
-; Function definitions
+; Function and class definitions
 
 (function_definition
-  name: (identifier) @function)
+  name: (identifier) @function.definition)
 
-; Identifier naming conventions
+; Class definitions and calling: needs to come after the regex matching above
 
-((identifier) @type
- (#match? @type "^[A-Z]"))
+(class_definition
+  name: (identifier) @type.class.definition)
 
-((identifier) @constant
- (#match? @constant "^_*[A-Z][A-Z\\d_]*$"))
+(call
+  function: (identifier) @type.class.call
+  (#match? @type.class.call "^[A-Z][A-Z0-9_]*[a-z]"))
 
 ; Builtin functions
 
@@ -89,6 +54,7 @@
   (none)
   (true)
   (false)
+  (ellipsis)
 ] @constant.builtin
 
 [
@@ -130,7 +96,7 @@
   body: (block (expression_statement (string) @string.doc)))
 
 (decorator
-  "@" @function.decorator
+  "@" @punctuation.special
   [
     (attribute
       object: (identifier) @function.decorator
@@ -149,15 +115,24 @@
   ]
 )
 
+(module
+  (expression_statement (assignment))
+  . (expression_statement (string) @string.doc))
+
 (class_definition
-  (argument_list [
-    (identifier) @type
-    (keyword_argument
-      name: (identifier) @variable.parameter
-      value: (_)
-    )
-  ])
-)
+  body: (block
+    (expression_statement (assignment))
+    . (expression_statement (string) @string.doc)))
+
+(class_definition
+  body: (block
+    (function_definition
+      name: (identifier) @function.method.constructor
+      (#eq? @function.method.constructor "__init__")
+      body: (block
+        (expression_statement (assignment))
+        . (expression_statement (string) @string.doc)))))
+
 
 [
   "-"

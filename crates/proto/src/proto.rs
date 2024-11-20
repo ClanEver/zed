@@ -314,6 +314,8 @@ messages!(
     (UsersResponse, Foreground),
     (LspExtExpandMacro, Background),
     (LspExtExpandMacroResponse, Background),
+    (LspExtOpenDocs, Background),
+    (LspExtOpenDocsResponse, Background),
     (SetRoomParticipantRole, Foreground),
     (BlameBuffer, Foreground),
     (BlameBufferResponse, Foreground),
@@ -342,7 +344,6 @@ messages!(
     (FindSearchCandidates, Background),
     (FindSearchCandidatesResponse, Background),
     (CloseBuffer, Foreground),
-    (UpdateUserSettings, Foreground),
     (ShutdownRemoteServer, Foreground),
     (RemoveWorktree, Foreground),
     (LanguageServerLog, Foreground),
@@ -363,7 +364,10 @@ messages!(
     (ActiveToolchain, Foreground),
     (ActiveToolchainResponse, Foreground),
     (GetPathMetadata, Background),
-    (GetPathMetadataResponse, Background)
+    (GetPathMetadataResponse, Background),
+    (GetPanicFiles, Background),
+    (GetPanicFilesResponse, Background),
+    (CancelLanguageServerWork, Foreground),
 );
 
 request_messages!(
@@ -462,6 +466,7 @@ request_messages!(
     (UpdateProject, Ack),
     (UpdateWorktree, Ack),
     (LspExtExpandMacro, LspExtExpandMacroResponse),
+    (LspExtOpenDocs, LspExtOpenDocsResponse),
     (SetRoomParticipantRole, Ack),
     (BlameBuffer, BlameBufferResponse),
     (RejoinRemoteProjects, RejoinRemoteProjectsResponse),
@@ -483,7 +488,9 @@ request_messages!(
     (ListToolchains, ListToolchainsResponse),
     (ActivateToolchain, Ack),
     (ActiveToolchain, ActiveToolchainResponse),
-    (GetPathMetadata, GetPathMetadataResponse)
+    (GetPathMetadata, GetPathMetadataResponse),
+    (GetPanicFiles, GetPanicFilesResponse),
+    (CancelLanguageServerWork, Ack),
 );
 
 entity_messages!(
@@ -548,13 +555,13 @@ entity_messages!(
     UpdateWorktree,
     UpdateWorktreeSettings,
     LspExtExpandMacro,
+    LspExtOpenDocs,
     AdvertiseContexts,
     OpenContext,
     CreateContext,
     UpdateContext,
     SynchronizeContexts,
     LspExtSwitchSourceHeader,
-    UpdateUserSettings,
     LanguageServerLog,
     Toast,
     HideToast,
@@ -566,7 +573,8 @@ entity_messages!(
     ListToolchains,
     ActivateToolchain,
     ActiveToolchain,
-    GetPathMetadata
+    GetPathMetadata,
+    CancelLanguageServerWork,
 );
 
 entity_messages!(
