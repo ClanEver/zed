@@ -76,27 +76,28 @@ impl ActiveLineTrailerProvider for AssistantHintsProvider {
         focus_handle: &gpui::FocusHandle,
         cx: &mut WindowContext,
     ) -> Option<gpui::AnyElement> {
-        if !focus_handle.is_focused(cx) {
-            return None;
-        }
+        return None
+        // if !focus_handle.is_focused(cx) {
+        //     return None;
+        // }
 
-        let chat_keybinding =
-            cx.keystroke_text_for_action_in(&assistant::ToggleFocus, focus_handle);
-        let generate_keybinding =
-            cx.keystroke_text_for_action_in(&zed_actions::InlineAssist::default(), focus_handle);
-
-        Some(
-            h_flex()
-                .id("inline-assistant-instructions")
-                .w_full()
-                .font_family(style.text.font().family)
-                .text_color(cx.theme().status().hint)
-                .line_height(style.text.line_height)
-                .child(format!(
-                    "{chat_keybinding} to chat, {generate_keybinding} to generate"
-                ))
-                .into_any(),
-        )
+        // let chat_keybinding =
+        //     cx.keystroke_text_for_action_in(&assistant::ToggleFocus, focus_handle);
+        // let generate_keybinding =
+        //     cx.keystroke_text_for_action_in(&zed_actions::InlineAssist::default(), focus_handle);
+        //
+        // Some(
+        //     h_flex()
+        //         .id("inline-assistant-instructions")
+        //         .w_full()
+        //         .font_family(style.text.font().family)
+        //         .text_color(cx.theme().status().hint)
+        //         .line_height(style.text.line_height)
+        //         .child(format!(
+        //             "{chat_keybinding} to chat, {generate_keybinding} to generate"
+        //         ))
+        //         .into_any(),
+        // )
     }
 }
 
