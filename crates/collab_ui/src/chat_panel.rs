@@ -1,4 +1,4 @@
-use crate::{collab_panel, ChatPanelSettings};
+use crate::{collab_panel, ChatPanelButton, ChatPanelSettings};
 use anyhow::Result;
 use call::{room, ActiveCall};
 use channel::{ChannelChat, ChannelChatEvent, ChannelMessage, ChannelMessageId, ChannelStore};
@@ -1096,7 +1096,7 @@ impl FocusableView for ChatPanel {
 }
 
 impl Panel for ChatPanel {
-    fn position(&self, cx: &gpui::WindowContext) -> DockPosition {
+    fn position(&self, cx: &WindowContext) -> DockPosition {
         ChatPanelSettings::get_global(cx).dock
     }
 
@@ -1112,7 +1112,7 @@ impl Panel for ChatPanel {
         );
     }
 
-    fn size(&self, cx: &gpui::WindowContext) -> Pixels {
+    fn size(&self, cx: &WindowContext) -> Pixels {
         self.width
             .unwrap_or_else(|| ChatPanelSettings::get_global(cx).default_width)
     }
@@ -1135,7 +1135,15 @@ impl Panel for ChatPanel {
     }
 
     fn icon(&self, cx: &WindowContext) -> Option<ui::IconName> {
-        Some(ui::IconName::MessageBubbles).filter(|_| ChatPanelSettings::get_global(cx).button)
+        match ChatPanelSettings::get_global(cx).button {
+            ChatPanelButton::Never => None,
+            ChatPanelButton::Always => Some(ui::IconName::MessageBubbles),
+            ChatPanelButton::WhenInCall => ActiveCall::global(cx)
+                .read(cx)
+                .room()
+                .filter(|room| room.read(cx).contains_guests())
+                .map(|_| ui::IconName::MessageBubbles),
+        }
     }
 
     fn icon_tooltip(&self, _cx: &WindowContext) -> Option<&'static str> {
@@ -1151,6 +1159,10 @@ impl Panel for ChatPanel {
             .read(cx)
             .room()
             .is_some_and(|room| room.read(cx).contains_guests())
+    }
+
+    fn activation_priority(&self) -> u32 {
+        7
     }
 }
 
