@@ -1,4 +1,6 @@
 ; Identifier naming conventions; these "soft conventions" should stay at the top of the file as they're often overridden
+(identifier) @variable
+(attribute attribute: (identifier) @property)
 
 ; CamelCase for classes
 ((identifier) @type.class
@@ -8,8 +10,6 @@
 ((identifier) @constant
   (#match? @constant "^_*[A-Z][A-Z0-9_]*$"))
 
-(parameter (identifier) @variable)
-(attribute attribute: (identifier) @property)
 (type (identifier) @type)
 (generic_type (identifier) @type)
 (comment) @comment
@@ -37,6 +37,7 @@
 (call
   function: (identifier) @function.call)
 
+(decorator "@" @punctuation.special)
 (decorator
   "@" @punctuation.special
   [
@@ -51,10 +52,33 @@
 (function_definition
   name: (identifier) @function.definition)
 
+; Function arguments
+(function_definition
+  parameters: (parameters
+  [
+      (identifier) @function.arguments ; Simple parameters
+      (typed_parameter
+        (identifier) @function.arguments) ; Typed parameters
+      (default_parameter
+        name: (identifier) @function.arguments) ; Default parameters
+      (typed_default_parameter
+        name: (identifier) @function.arguments) ; Typed default parameters
+  ]))
+
+; Keyword arguments
+(call
+  arguments: (argument_list
+    (keyword_argument
+      name: (identifier) @function.kwargs)))
+
 ; Class definitions and calling: needs to come after the regex matching above
 
 (class_definition
   name: (identifier) @type.class.definition)
+
+(class_definition
+  superclasses: (argument_list
+  (identifier) @type.class.inheritance))
 
 (call
   function: (identifier) @type.class.call
@@ -74,9 +98,12 @@
 ; Literals
 
 [
-  (none)
   (true)
   (false)
+] @boolean
+
+[
+  (none)
   (ellipsis)
 ] @constant.builtin
 
@@ -94,6 +121,12 @@
 ]
 
 [
+  "."
+  ","
+  ":"
+] @punctuation.delimiter
+
+[
   "("
   ")"
   "["
@@ -107,21 +140,27 @@
   "}" @punctuation.special) @embedded
 
 ; Docstrings.
+(module
+  .(expression_statement (string) @string.doc)+)
+
+(class_definition
+  body: (block .(expression_statement (string) @string.doc)+))
+
 (function_definition
   "async"?
   "def"
   name: (_)
   (parameters)?
-  body: (block . (expression_statement (string) @string.doc)))
+  body: (block .(expression_statement (string) @string.doc)+))
 
 (class_definition
   body: (block
     . (comment) @comment*
-    . (expression_statement (string) @string.doc)))
+    . (expression_statement (string) @string.doc)+))
 
 (module
   . (comment) @comment*
-  . (expression_statement (string) @string.doc))
+  . (expression_statement (string) @string.doc)+)
 
 (decorator
   "@" @punctuation.special
@@ -148,12 +187,12 @@
     (expression_statement (assignment))
     (type_alias_statement)
   ]
-  . (expression_statement (string) @string.doc))
+  . (expression_statement (string) @string.doc)+)
 
 (class_definition
   body: (block
     (expression_statement (assignment))
-    . (expression_statement (string) @string.doc)))
+    . (expression_statement (string) @string.doc)+))
 
 (class_definition
   body: (block
@@ -162,7 +201,7 @@
       (#eq? @function.method.constructor "__init__")
       body: (block
         (expression_statement (assignment))
-        . (expression_statement (string) @string.doc)))))
+        . (expression_statement (string) @string.doc)+))))
 
 (class_definition
   (argument_list [
@@ -189,6 +228,7 @@
   "&"
   "%"
   "%="
+  "@"
   "^"
   "+"
   "->"
@@ -251,3 +291,33 @@
   "match"
   "case"
 ] @keyword
+
+; Definition keywords def, class, async def, lambda
+[
+  "async"
+  "def"
+  "class"
+  "lambda"
+] @keyword.definition
+
+((identifier) @attribute.builtin
+  (#any-of? @attribute.builtin "classmethod" "staticmethod" "property"))
+
+; Builtin types as identifiers
+[
+  (call
+    function: (identifier) @type.builtin)
+  (call
+    arguments: (argument_list
+    (identifier) @type.builtin))
+  (call
+    arguments: (argument_list
+      (keyword_argument
+        value: (identifier) @type.builtin)))
+  (type (identifier) @type.builtin)
+  ; also check if type binary operator left identifier for union types
+  (type
+    (binary_operator
+      left: (identifier) @type.builtin))
+  (#any-of? @type.builtin "bool" "bytearray" "bytes" "complex" "dict" "float" "frozenset" "int" "list" "memoryview" "object" "range" "set" "slice" "str" "tuple")
+] @type.builtin

@@ -1,21 +1,23 @@
 use std::sync::Arc;
 
-use anyhow::{anyhow, bail};
-use assistant_tool::Tool;
-use gpui::{Model, Task, WindowContext};
+use anyhow::{anyhow, bail, Result};
+use assistant_tool::{Tool, ToolSource};
+use gpui::{App, Entity, Task};
+use language_model::LanguageModelRequestMessage;
+use project::Project;
 
 use crate::manager::ContextServerManager;
 use crate::types;
 
 pub struct ContextServerTool {
-    server_manager: Model<ContextServerManager>,
+    server_manager: Entity<ContextServerManager>,
     server_id: Arc<str>,
     tool: types::Tool,
 }
 
 impl ContextServerTool {
     pub fn new(
-        server_manager: Model<ContextServerManager>,
+        server_manager: Entity<ContextServerManager>,
         server_id: impl Into<Arc<str>>,
         tool: types::Tool,
     ) -> Self {
@@ -36,6 +38,12 @@ impl Tool for ContextServerTool {
         self.tool.description.clone().unwrap_or_default()
     }
 
+    fn source(&self) -> ToolSource {
+        ToolSource::ContextServer {
+            id: self.server_id.clone().into(),
+        }
+    }
+
     fn input_schema(&self) -> serde_json::Value {
         match &self.tool.input_schema {
             serde_json::Value::Null => {
@@ -49,11 +57,12 @@ impl Tool for ContextServerTool {
     }
 
     fn run(
-        self: std::sync::Arc<Self>,
+        self: Arc<Self>,
         input: serde_json::Value,
-        _workspace: gpui::WeakView<workspace::Workspace>,
-        cx: &mut WindowContext,
-    ) -> gpui::Task<gpui::Result<String>> {
+        _messages: &[LanguageModelRequestMessage],
+        _project: Entity<Project>,
+        cx: &mut App,
+    ) -> Task<Result<String>> {
         if let Some(server) = self.server_manager.read(cx).get_server(&self.server_id) {
             cx.foreground_executor().spawn({
                 let tool_name = self.tool.name.clone();
